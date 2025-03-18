@@ -9,6 +9,123 @@ class LeadDatabase(MarketoBase):
         self.opportunity_endpoint = "v1/opportunities"
         self.custom_object_endpoint = "v1/customobjects"
 
+    def describe(self) -> Dict[str, Any]:
+        """Get metadata about the lead object and its fields"""
+        return self._get(f"{self.base_endpoint}/describe.json")
+
+    def get_leads(self, filter_type: str, filter_values: List[str],
+                  fields: Optional[List[str]] = None, batch_size: Optional[int] = None,
+                  next_page_token: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get leads by filter criteria
+        
+        Args:
+            filter_type: Field to filter by (must be from searchableFields or dedupeFields)
+            filter_values: Values to filter by
+            fields: List of fields to return
+            batch_size: Number of records to return per page
+            next_page_token: Token for getting the next page of results
+        """
+        params = {
+            "filterType": filter_type,
+            "filterValues": ",".join(filter_values)
+        }
+        if fields:
+            params["fields"] = ",".join(fields)
+        if batch_size:
+            params["batchSize"] = batch_size
+        if next_page_token:
+            params["nextPageToken"] = next_page_token
+            
+        return self._get(f"{self.base_endpoint}.json", params=params)
+
+    def create_or_update_leads(self, leads: List[Dict[str, Any]],
+                             action: str = "createOrUpdate",
+                             dedupe_by: str = "dedupeFields") -> Dict[str, Any]:
+        """
+        Create or update leads
+        
+        Args:
+            leads: List of lead dictionaries
+            action: Action to take (createOnly, updateOnly, createOrUpdate)
+            dedupe_by: Field to use for deduplication (dedupeFields or idField)
+        """
+        data = {
+            "input": leads,
+            "action": action,
+            "dedupeBy": dedupe_by
+        }
+        return self._post(f"{self.base_endpoint}.json", data=data)
+
+    def delete_leads(self, leads: List[Dict[str, Any]],
+                    delete_by: str = "dedupeFields") -> Dict[str, Any]:
+        """
+        Delete leads
+        
+        Args:
+            leads: List of lead identifiers
+            delete_by: Method to identify leads (dedupeFields or idField)
+        """
+        data = {
+            "input": leads,
+            "deleteBy": delete_by
+        }
+        return self._post(f"{self.base_endpoint}/delete.json", data=data)
+
+    def get_lead_activities(self, lead_id: int, activity_type_ids: Optional[List[int]] = None,
+                          start_date: Optional[str] = None, end_date: Optional[str] = None,
+                          batch_size: Optional[int] = None,
+                          next_page_token: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get activities for a specific lead
+        
+        Args:
+            lead_id: ID of the lead
+            activity_type_ids: List of activity type IDs to filter by
+            start_date: Start date for activities (ISO 8601 format)
+            end_date: End date for activities (ISO 8601 format)
+            batch_size: Number of records to return per page
+            next_page_token: Token for getting the next page of results
+        """
+        params = {}
+        if activity_type_ids:
+            params["activityTypeIds"] = ",".join(map(str, activity_type_ids))
+        if start_date:
+            params["startDate"] = start_date
+        if end_date:
+            params["endDate"] = end_date
+        if batch_size:
+            params["batchSize"] = batch_size
+        if next_page_token:
+            params["nextPageToken"] = next_page_token
+            
+        return self._get(f"{self.base_endpoint}/{lead_id}/activities.json", params=params)
+
+    def get_lead_changes(self, start_date: str, end_date: Optional[str] = None,
+                        fields: Optional[List[str]] = None, batch_size: Optional[int] = None,
+                        next_page_token: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get changes to leads within a date range
+        
+        Args:
+            start_date: Start date for changes (ISO 8601 format)
+            end_date: End date for changes (ISO 8601 format)
+            fields: List of fields to return
+            batch_size: Number of records to return per page
+            next_page_token: Token for getting the next page of results
+        """
+        params = {"startDate": start_date}
+        if end_date:
+            params["endDate"] = end_date
+        if fields:
+            params["fields"] = ",".join(fields)
+        if batch_size:
+            params["batchSize"] = batch_size
+        if next_page_token:
+            params["nextPageToken"] = next_page_token
+            
+        return self._get(f"{self.base_endpoint}/activities.json", params=params)
+
     def get_lead_by_id(self, lead_id: int) -> Dict[str, Any]:
         """Get a lead by ID"""
         return self._get(f"{self.base_endpoint}/{lead_id}.json")
@@ -32,29 +149,6 @@ class LeadDatabase(MarketoBase):
     def delete_lead(self, lead_id: int) -> Dict[str, Any]:
         """Delete a lead by ID"""
         return self._delete(f"{self.base_endpoint}/{lead_id}.json")
-
-    def get_lead_activities(self, lead_id: int, 
-                          activity_type_ids: Optional[List[int]] = None,
-                          start_date: Optional[str] = None,
-                          end_date: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get activities for a lead
-        
-        Args:
-            lead_id: Lead ID
-            activity_type_ids: List of activity type IDs to filter by
-            start_date: Start date in ISO 8601 format
-            end_date: End date in ISO 8601 format
-        """
-        params = {}
-        if activity_type_ids:
-            params["activityTypeIds"] = activity_type_ids
-        if start_date:
-            params["startDate"] = start_date
-        if end_date:
-            params["endDate"] = end_date
-            
-        return self._get(f"{self.base_endpoint}/{lead_id}/activities.json", params=params)
 
     def get_lead_attributes(self) -> Dict[str, Any]:
         """Get all available lead attributes"""
